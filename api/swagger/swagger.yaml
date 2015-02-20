@@ -1,0 +1,197 @@
+swagger: "2.0"
+info:
+  version: "0.0.1"
+  title: Hello World App
+# during dev, should point to your local machine
+host: localhost:10010
+# basePath prefixes all resource paths 
+basePath: /
+# 
+schemes:
+  # tip: remove http to make production-grade
+  - http
+  - https
+# format of bodies a client can send (Content-Type)
+consumes:
+  - application/json
+# format of the responses to the client (Accepts)
+produces:
+  - application/json
+x-a127-config:
+  boulder.key: &apigeeProxyKey CONFIGURED
+  boulder.uri: &apigeeProxyUri CONFIGURED
+x-a127-services:
+  cache:
+    provider: volos-cache-memory
+    options:
+      name: cache
+      ttl: 10000
+  quota:
+    provider: volos-quota-memory
+    options:
+      timeUnit: hour
+      interval: 1
+      allow: 2
+  oauth2:
+    provider: volos-oauth-apigee
+    options:
+      key: *apigeeProxyKey
+      uri: *apigeeProxyUri
+      validGrantTypes:
+        - client_credentials
+        - authorization_code
+        - implicit_grant
+        -password
+      tokenLifetime: 30000
+      tokenPaths:
+        authorize: /authorize
+        token: /accessToken
+paths:
+  /hello:
+    # binds a127 app logic to a route
+    x-swagger-router-controller: hello_world
+    x-a127-apply: {}
+    get:
+      description: Returns 'Hello' to the caller
+      # used as the method name of the controller
+      operationId: hello
+      parameters:
+        - name: name
+          in: query
+          description: The name of the person to whom to say hello
+          required: false
+          type: string
+      responses:
+        "200":
+          description: Success
+          schema:
+            # a pointer to a definition
+            $ref: "#/definitions/HelloWorldResponse"
+        # responses may fall through to errors
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /restaurants:
+    # binds a127 app logic to a route
+    x-swagger-router-controller: restaurants
+    x-a127-apply:
+      quota: {}
+      cache: {}
+    get:
+      description: Returns all restaurants
+      # used as the method name of the controller
+      operationId: getRestaurants
+      security:
+        - oauth2: []
+      responses:
+        "200":
+          description: Success
+          schema:
+            # a pointer to a definition
+            $ref: "#/definitions/HelloWorldResponse"
+        # responses may fall through to errors
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /restaurants/{id}:
+    # binds a127 app logic to a route
+    x-swagger-router-controller: restaurants
+    x-a127-apply: {}
+    get:
+      description: Returns restaurant with restID = id
+      # used as the method name of the controller
+      operationId: getRestaurantById
+      parameters:
+        - name: id
+          in: path
+          description: The restID of the restaurant that is requested
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Success
+          schema:
+            # a pointer to a definition
+            $ref: "#/definitions/HelloWorldResponse"
+        # responses may fall through to errors
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /reviews:
+    # binds a127 app logic to a route
+    x-swagger-router-controller: reviews
+    x-a127-apply: {}
+    get:
+      description: Returns reviews of a restaurant
+      # used as the method name of the controller
+      operationId: getReviews
+      parameters:
+        - name: restId
+          in: query
+          description: The restID of the restaurant for which reviews are requested
+          required: false
+          type: string
+      responses:
+        "200":
+          description: Success
+          schema:
+            # a pointer to a definition
+            $ref: "#/definitions/HelloWorldResponse"
+        # responses may fall through to errors
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    post:
+      description: Returns reviews of a restaurant
+      # used as the method name of the controller
+      operationId: postReview
+      parameters:
+        - name: body
+          in: body
+          description: The review contents
+          required: true
+          schema:
+            $ref: "#/definitions/Review"
+      responses:
+        "200":
+          description: Success
+          schema:
+            # a pointer to a definition
+            $ref: "#/definitions/HelloWorldResponse"
+        # responses may fall through to errors
+        default:
+          description: Error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+# complex objects have schema definitions
+definitions:
+  Review:
+    properties:
+      restID:
+        type: integer
+      rating:
+        type: integer
+      review:
+        type: string
+    required: [restID, rating]
+  HelloWorldResponse:
+    required:
+      - message
+    properties:
+      message:
+        type: string
+  ErrorResponse:
+    required:
+      - message
+    properties:
+      message:
+        type: string
+securityDefinitions:
+  oauth2:
+    type: oauth2
+    flow: application
+    tokenUrl: ignored
